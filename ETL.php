@@ -149,11 +149,13 @@ function export(&$pdo, $sql, $table, $options=[])
 		$exportDB = true;
 	}
 
+	if ($exportDB) {
+		$pdo->beginTransaction();
+	}
 
 	if ($exportFile) {
 		$fp = create_csv_file($table.'.txt');
 	}
-
 	
 	$queryResults = $pdo->query($sql);
 	if($queryResults != null) {
