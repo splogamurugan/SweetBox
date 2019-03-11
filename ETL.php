@@ -27,6 +27,8 @@ function import(&$pdo, $csv_path, $options = array())
 	
 	$pdo->beginTransaction();
 	
+	echo "\n Importing csv ". substr($csv_path, 0, 50).'  to table: "'.$table.'" ';
+
 	
 	create_table($pdo, $table, $create_fields_str);
 
@@ -45,6 +47,9 @@ function import(&$pdo, $csv_path, $options = array())
 	
 	fclose($csv_handle);
 	
+	echo " ...Done. Imported {$inserted_rows} rows! \n";
+
+
 	return array(
 		'table' => $table,
 		'fields' => $fields,
@@ -145,7 +150,6 @@ function export(&$pdo, $sql, $table, $options=[])
 	}
 
 	if (!isset($exportDB)) {
-		$pdo->beginTransaction();
 		$exportDB = true;
 	}
 
@@ -158,12 +162,26 @@ function export(&$pdo, $sql, $table, $options=[])
 	}
 	
 	$queryResults = $pdo->query($sql);
+	
+	if (!$queryResults) {
+		handle_error($pdo);
+	}
+
+	echo "\n Exporting ". substr($sql, 0, 50).'...'.' with to "'.$table.'" ';
+
 	if($queryResults != null) {
 
 		$row = $queryResults->fetch(PDO::FETCH_ASSOC);
-		$queryResults = null;
 
-		$headers = array_keys($row);
+		if (!empty($row)) {
+			$headers = array_keys($row);
+		} elseif (isset($headers)) {
+			$headers = explode(',', $headers);
+		} else {
+			die ("\n *** Export operation not possible since no rows are selected/headers provided! \n");
+		}
+
+		$queryResults = null;
 
 		if ($exportDB) {
 			$create_fields_str = create_fields($headers);
@@ -178,6 +196,8 @@ function export(&$pdo, $sql, $table, $options=[])
 		if ($exportFile) {
 			write_csv_file($fp, $headers);
 		}
+
+		
 	}
 
 	$queryResults = $pdo->query($sql);
@@ -197,6 +217,8 @@ function export(&$pdo, $sql, $table, $options=[])
 	if ($exportDB) {
 		$pdo->commit();
 	}
+
+	echo " ... Done \n";
 
 	//print_r($rows);exit;
 
@@ -264,3 +286,14 @@ function split_files($fname, $limit = 5000)
 	fclose($handle);
 }
 
+
+function convert_json_to_csv($json, $csvfile)
+{
+	$ch = create_csv_file($csvfile);
+
+	foreach($json as $js) {
+		write_csv_file($ch, array_values($js));
+	}
+	
+	close_csv_file($ch);
+}
